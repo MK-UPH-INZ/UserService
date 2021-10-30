@@ -6,11 +6,15 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
+using UserService.AsyncDataServices;
+using UserService.Data;
+using UserService.EventProcessing;
 
 namespace UserService
 {
@@ -26,8 +30,19 @@ namespace UserService
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            services.AddDbContext<AppDbContext>(opt => opt.UseInMemoryDatabase("InMem"));
+            services.AddScoped<IRestaurantRepo, RestaurantRepo>();
+            services.AddScoped<IUserRepo, UserRepo>();
+            services.AddScoped<IUserRoleRepo, UserRoleRepo>();
+
+            services.AddSingleton<IEventProcessor, EventProcessor>();
+
+            services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 
             services.AddControllers();
+
+            services.AddHostedService<MessageBusSubscriber>();
+
             services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new OpenApiInfo { Title = "UserService", Version = "v1" });
@@ -54,6 +69,8 @@ namespace UserService
             {
                 endpoints.MapControllers();
             });
+
+            PrepDb.PrepPopulation(app);
         }
     }
 }
